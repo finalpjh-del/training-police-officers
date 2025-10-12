@@ -36,12 +36,13 @@
   .modal{width:min(92vw,640px);background:var(--paper);color:var(--ink);border-radius:18px;padding:20px;
          box-shadow:0 18px 50px rgba(0,0,0,.35)}
   .seg{display:inline-flex;border:1px solid rgba(0,0,0,.12);border-radius:12px;overflow:hidden}
-  .seg button{background:#f3f6fb;color:#111}
+  .seg button{background:#f3f6fb;color:#111;display:flex;align-items:center;gap:8px;padding:8px 12px}
+  .seg button img{width:28px;height:28px;border-radius:6px;box-shadow:0 1px 2px rgba(0,0,0,.25);object-fit:cover;image-rendering:auto}
   .seg button.selected{background:#111;color:#fff;font-weight:800}
   .titlechip{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:12px;color:#fff;
              background:linear-gradient(90deg,#ff9966,#ff5e62);font-weight:800;box-shadow:0 2px 10px rgba(255,120,90,.4)}
   #ending{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;color:#fff;z-index:1200}
-  #ending .panel{width:min(92vw,780px);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);
+  #ending .panel{width:min(92vw,780px);max-height:85vh;overflow:auto;-webkit-overflow-scrolling:touch;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);
                  border-radius:18px;padding:22px;text-align:left}
   #ending h2{margin:0 0 10px}
   #ending ul{list-style:none;padding:0;margin:8px 0 10px}
@@ -63,8 +64,8 @@
       <div style="height:8px"></div>
       <div>조직</div>
       <div class="seg" role="group">
-        <button id="orgPolice">🚓 경찰</button>
-        <button id="orgCoast">🚤 해양경찰</button>
+        <button id="orgPolice"><img id="logoPolice" alt="경찰 로고"/>경찰</button>
+        <button id="orgCoast"><img id="logoCoast" alt="해양경찰 로고"/>해양경찰</button>
       </div>
       <div style="height:10px"></div>
       <div>성별</div>
@@ -128,7 +129,7 @@
   </div>
 
   <div id="pop" class="overlay">
-    <div class="modal pop-enter">
+    <div class="modal pop-enter" style="max-height:85vh;overflow:auto;-webkit-overflow-scrolling:touch">
       <div id="popTitle" class="titlechip">알림</div>
       <ul id="popList" style="list-style:none; padding:0; margin:10px 0"></ul>
       <div class="flex" style="justify-content:flex-end">
@@ -160,6 +161,25 @@
   const DICE = ['⚀','⚁','⚂','⚃','⚄','⚅'];
   const ENEMIES = {1:["🧟‍♂️ 주취자","🦹‍♂️ 보이스피싱"],2:["🤹‍♂️ 사기꾼","👨‍💻 스토커"],3:["🧌 조폭","💊 마약사범"],4:["👤 간첩","🪖 테러리스트"],5:["👨‍✈️ 부패한 경찰","🗣️ 내란 우두머리"]};
   const MAX_LEVEL = 99;
+
+  
+  // 로고 자동 로더: svg/png/jpg/webp 순차 시도 + 캐시버스터
+  function loadLogo(imgEl, baseName){
+    const exts = ["svg","png","jpg","jpeg","webp"];
+    const fallbackSVG = baseName==="police"
+      ? 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 200\"><rect rx=\"28\" width=\"200\" height=\"200\" fill=\"#3b82f6\"/><circle cx=\"100\" cy=\"85\" r=\"38\" fill=\"#fde68a\"/><text x=\"100\" y=\"185\" text-anchor=\"middle\" font-size=\"20\" fill=\"#fff\" font-family=\"Arial\" font-weight=\"bold\">POLICE</text></svg>')
+      : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 200\"><rect rx=\"28\" width=\"200\" height=\"200\" fill=\"#22d3ee\"/><path d=\"M20 130c30-10 60 10 90 0s50-20 70 0v30H20z\" fill=\"#ecfeff\"/><text x=\"100\" y=\"185\" text-anchor=\"middle\" font-size=\"18\" fill=\"#0b1020\" font-family=\"Arial\" font-weight=\"bold\">COAST</text></svg>');
+    let i=0;
+    function tryNext(){
+      if(i>=exts.length){ imgEl.src=fallbackSVG; return; }
+      const url = `${baseName}_logo.${exts[i]}?v=${Date.now()}`;
+      const test = new Image();
+      test.onload = ()=>{ imgEl.src=url; };
+      test.onerror = ()=>{ i++; tryNext(); };
+      test.src = url;
+    }
+    tryNext();
+  }
 
   const el = {
     start:$("start"), game:$("game"), pop:$("pop"), popTitle:$("popTitle"), popList:$("popList"), popOk:$("popOk"),
@@ -194,7 +214,7 @@
   const updateFireLabel=()=>{ el.btnFire.textContent = (state.ammo==='9mm') ? "🔫 격발 (-4💰)" : "🔫 격발 (-3💰)"; };
   const updateHUD=()=>{
     el.orgBadge.textContent=(state.org==='coast'?'🚤 해양경찰':'🚓 경찰');
-    el.emoji.textContent=state.gender==='F'?'👮‍♀️':(state.gender==='M'?'👮‍♂️':'👮');
+    el.emoji.textContent=emojiByGender();
     el.rank.textContent=RANKS[state.rankIdx];
     el.name.textContent=state.name;
     el.hp.textContent=state.hp;
@@ -213,9 +233,10 @@
   const pickEnemy=()=>{ const t=enemyTier(state.level); const list=ENEMIES[t]; const name=list[rint(0,list.length-1)]; state.enemyLabel=`Lv.${state.level} ${name}`; state.enemyHP=9+state.level*1; };
   const spawnEnemy=()=>{ el.after.style.display="none"; pickEnemy(); updateHUD(); setBtns(true); el.msg.textContent="⚔️ 제압 중..."; el.pDice.textContent="🎲"; el.eDice.textContent="🎲"; state.equalStreak=0; };
 
-  const perKillMonths=()=> (state.rankIdx>=2 && state.rankIdx<=6)?6:3;
-  const rankBonusMonths=idx=> idx<=3?5:(idx<=7?11:5);
   const totalMonths=()=> state.monthsAccum + state.bonusMonths;
+  function addMonths(base){ return base + (Math.random()<0.5 ? 1 : 0); }
+  function perKillMonths(){ return addMonths((state.rankIdx>=2 && state.rankIdx<=6)?6:3); }
+  function bonusMonthsByRank(idx){ return addMonths(idx<=3?5:(idx<=7?11:5)); }
 
   function bonusByLevel(lv){
     if(lv>=90) return 12;
@@ -245,7 +266,7 @@
     earn += bonusByLevel(state.level);
     state.gold+=earn; updateHUD(); checkResignByWealth(); return earn;
   }
-  const addDefeated=()=>{ const pure=state.enemyLabel.replace(/Lv\.\d+\s+/,''); state.defeated[pure]=(state.defeated[pure]||0)+1; };
+  const addDefeated=()=>{ const pure=state.enemyLabel.replace(/Lv\.[0-9]+\s+/,''); state.defeated[pure]=(state.defeated[pure]||0)+1; };
 
   function saveMemorial(endTitle){
     try{
@@ -315,7 +336,7 @@
   function handleVictory(){
     if(state.hp<=0) return checkDeath();
     addDefeated();
-    state.monthsAccum += (state.rankIdx>=2 && state.rankIdx<=6)?6:3;
+    state.monthsAccum += perKillMonths();
     let text="";
     if(state.enemyHP<=-15){
       if(state.rankIdx===0){ state.ended=true; return openEnding("추방"); }
@@ -323,7 +344,7 @@
       const prevIdx=state.rankIdx;
       state.rankIdx-=1;
       state.cost = nextCostForRank(state.rankIdx); // 강등 후 비용 재계산
-      const bonus=(state.rankIdx<=3?5:(state.rankIdx<=7?11:5));
+      const bonus = bonusMonthsByRank(state.rankIdx);
       const servedPrev=(before+bonus)-state.rankStartMonths;
       logRankChange("강등", prevIdx, state.rankIdx, servedPrev);
       state.maxHP=Math.max(10,state.maxHP-10);
@@ -421,10 +442,10 @@
   el.btnAmmo.onclick=()=>{
     if(state.ammo==='22lr'){
       state.ammo='9mm';
-      openPopup("🔄 탄종 전환", "다음 턴부터 9mm탄을 사용합니다. (-4💰 / 45% / 35~45)");
+      openPopup("🔄 탄종 전환", "다음 턴부터 9mm탄을 사용합니다.");
     }else{
       state.ammo='22lr';
-      openPopup("🔄 탄종 전환", "다음 턴부터 22lr탄을 사용합니다. (-3💰 / 50% / 20~25)");
+      openPopup("🔄 탄종 전환", "다음 턴부터 22lr탄을 사용합니다.");
     }
     updateFireLabel();
     el.btnAmmo.textContent = state.ammo==='22lr' ? "🔄 다음 턴 탄종: 9mm" : "🔄 다음 턴 탄종: 22lr";
@@ -438,8 +459,8 @@
     if(state.gold<state.cost){ el.msg.textContent="💰 골드가 부족합니다!"; return; }
     const before=totalMonths(); const prevIdx=state.rankIdx; const prev=RANKS[prevIdx];
     state.gold-=state.cost; state.rankIdx+=1;
-    state.cost = nextCostForRank(state.rankIdx); // 승진 후 다시 계산
-    const bonus=(state.rankIdx<=3?5:(state.rankIdx<=7?11:5));
+    state.cost = nextCostForRank(state.rankIdx);
+    const bonus = bonusMonthsByRank(state.rankIdx);
     const servedPrev=(before+bonus)-state.rankStartMonths;
     logRankChange("승진", prevIdx, state.rankIdx, servedPrev);
     state.maxHP+=10; state.hp=Math.min(state.maxHP,state.hp+99);
@@ -506,6 +527,11 @@
   };
 
   backToStart(false);
+
+  // 로고 시도 로드
+  loadLogo(document.getElementById('logoPolice'), 'police');
+  loadLogo(document.getElementById('logoCoast'), 'coast');
+
 })();
 </script>
 </body>

@@ -24,7 +24,7 @@
   .pill{background:#0b1020;color:#fff;border-radius:999px;padding:10px 14px;font-weight:800;cursor:pointer;border:0}
   @keyframes fadeUp { from{transform:translateY(10px);opacity:.0} to{transform:translateY(0);opacity:1} }
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:14px;z-index:1000}
-  .modal{width:min(92vw,760px);background:#fff;color:#0b1020;border-radius:18px;padding:24px;
+  .modal{width:min(92vw,760px);max-height:85vh;overflow:auto;-webkit-overflow-scrolling:touch;background:#fff;color:#0b1020;border-radius:18px;padding:24px;
          box-shadow:0 18px 50px rgba(0,0,0,.35)}
   .tipgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:12px}
   .tip{border:1px solid #e6ecff;border-radius:14px;padding:14px;background:linear-gradient(135deg,#eef4ff,#ffffff)}
@@ -50,11 +50,11 @@
       <h2 style="margin:0 0 8px">💡 게임 팁</h2>
       <div class="tipgrid">
         <div class="tip"><h3>승진 효과</h3><p>승진을 하면 최대체력과 적 제압 보상이 늘어납니다.</p></div>
-        <div class="tip"><h3>격발 시스템</h3><p><b>22lr</b>은 비용이 적고 안정적이며,<br><b>9mm</b>는 비용이 더 들지만 한 방의 영향이 큽니다.</p></div>
+        <div class="tip"><h3>격발 시스템</h3><p><b>22lr</b>은 저비용·안정적, <b>9mm</b>는 고비용·한 방 영향 큼.</p></div>
         <div class="tip"><h3>과잉 진압 주의</h3><p>적 체력이 너무 낮을 때 격발하면 보상이 없거나 강등될 수 있습니다.</p></div>
         <div class="tip"><h3>구급함 운용</h3><p>구급함을 적절히 사용하세요. (사용 시 ❤️ 회복)</p></div>
-        <div class="tip"><h3>레벨 보너스</h3><p>레벨이 오를수록 단계별로 추가 보상이 붙습니다.</p></div>
-        <div class="tip"><h3>연속 동시 적중</h3><p>적과 같은 주사위가 <b>2회 이상 연속</b> 나오면 매회 보너스 골드가 지급됩니다.</p></div>
+        <div class="tip"><h3>레벨 보너스</h3><p>레벨이 오를수록 단계별 추가 보상이 붙습니다.</p></div>
+        <div class="tip"><h3>연속 동시 적중</h3><p>적과 같은 주사위가 <b>2회 이상 연속</b> 나오면 매회 보너스 골드 지급.</p></div>
         <div class="tip"><h3>경위 시작 팁</h3><p>♧ 경위로 시작시 게임이 더 쉬워집니다. (초기 체력 우수)</p></div>
       </div>
       <div style="text-align:right;margin-top:12px">

@@ -21,12 +21,23 @@
   .top{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(0,0,0,.12)}
   .chip{padding:4px 8px;border-radius:999px;font-weight:800;background:#fff;color:#111}
   .content{padding:12px}
+  .avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;box-shadow:0 2px 8px rgba(0,0,0,.25);margin-right:8px}
   .meta{font-size:13px;opacity:.92}
   .name{font-size:18px;font-weight:900}
   .gold{color:#fff2a8;font-weight:900}
   .splitter{height:1px;background:linear-gradient(90deg,rgba(255,255,255,.6),rgba(255,255,255,.08));margin:8px 0}
   .secwrap{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:14px;margin:10px 14px;padding:6px 0}
+  .saveCard{margin-top:8px;padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-weight:800;background:#0b1020;color:#fff}
+.banner{margin:10px 14px;padding:14px;border-radius:16px;
+  background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.08));
+  border:1px solid rgba(255,255,255,.35);box-shadow:0 10px 28px rgba(0,0,0,.18)}
+.banner h2{margin:0 0 6px}
+.banner p{margin:0;opacity:.95}
+.ribbon{margin:10px 14px;padding:12px;border-radius:12px;background:linear-gradient(90deg,#22c55e,#16a34a);font-weight:900;box-shadow:0 10px 28px rgba(0,0,0,.18)}
+.ribbon small{opacity:.9;font-weight:700}
+.copy{cursor:pointer;text-decoration:underline}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </head>
 <body>
 <header>
@@ -47,6 +58,8 @@
   </div>
 </header>
 
+<div class="banner"><h2>우리는 기억합니다.</h2><p>당신의 헌신과 용기를 잊지 않습니다. 기록은 명예가 됩니다.</p></div>
+<div id="achv"></div>
 <div id="wrap"></div>
 
 <script>
@@ -54,6 +67,7 @@
   const SKEY="police_memorials";
   const $=id=>document.getElementById(id);
   const wrap=$("wrap");
+  const achv=$("achv");
 
   const groups=[
     {key:"순직",               title:"🪦 순직",                colors:["#b22222","#ff6b6b"]},
@@ -69,13 +83,28 @@
     return i>=0? i : -1;
   };
 
-  function draw(){
+  function hasAllEndings(data){
+      const need = ["순직","명예퇴직-청장퇴직","정년퇴직","추방","의원면직-화이어족"];
+      const done = new Set((data||[]).map(x=>x.endTitle||""));
+      return need.every(k=> Array.from(done).some(t=> t.includes(k)));
+    }
+    function draw(){
     const q=($("search").value||"").trim();
     const sort=($("sort").value||"new");
     const data=JSON.parse(localStorage.getItem(SKEY)||"[]");
 
     wrap.innerHTML="";
+    achv.innerHTML="";
     if(!data.length){ wrap.innerHTML=`<div class="secwrap" style="padding:18px;text-align:center">기록이 없습니다. 게임에서 엔딩을 본 뒤 자동 저장됩니다.</div>`; return; }
+
+    if(hasAllEndings(data)){
+      achv.innerHTML = `<div class="ribbon">🎉 당신은 모든 업적을 달성하였습니다. <small>(순직·명예퇴직·정년퇴직·추방·의원면직)</small><br>📫 문의: <span id='mailto' class='copy'>finalpjh@gmail.com</span></div>`;
+      // Copy-to-clipboard
+      setTimeout(()=>{
+        const m=document.getElementById('mailto');
+        if(m){ m.onclick=()=>{ navigator.clipboard?.writeText('finalpjh@gmail.com'); m.textContent='복사됨: finalpjh@gmail.com'; setTimeout(()=>m.textContent='finalpjh@gmail.com',1600); }; }
+      }, 0);
+    }
 
     let items=data.slice();
     if(q) items=items.filter(x=> (x.name||"").includes(q) || (x.org||"").includes(q) || (x.currentRank||"").includes(q) || (x.entryRank||"").includes(q) || (x.endTitle||"").includes(q));
@@ -85,8 +114,8 @@
       else if(sort==="old") list.sort((a,b)=>(a.id||0)-(b.id||0));
       else if(sort==="months") list.sort((a,b)=>(b.months||0)-(a.months||0));
       else if(sort==="name") list.sort((a,b)=> (a.name||"").localeCompare(b.name||"","ko"));
-      else if(sort==="rank") list.sort((a,b)=> (rankIndex(b.currentRank)-rankIndex(a.currentRank)));
-      else list.sort((a,b)=>(b.id||0)-(a.id||0));
+      else if(sort==="rank") list.sort((a,b)=> (rankIndex(b.currentRank)-rankIndex(a.currentRank))); // 높은 계급 우선
+      else list.sort((a,b)=>(b.id||0)-(a.id||0)); // 기본: 최신
     };
 
     groups.forEach(g=>{
@@ -112,6 +141,7 @@
         card.style.background=`linear-gradient(135deg, ${g.colors[0]}, ${g.colors[1]})`;
         card.innerHTML=`
           <div class="top">
+            <img class="avatar" onerror="this.style.display='none'" src="" alt="avatar">
             <span class="chip">${it.endTitle||"엔딩"}</span>
           </div>
           <div class="content">
@@ -125,13 +155,38 @@
             <div class="meta">승진/강등: ${hist}</div>
           </div>
         `;
-        grid.appendChild(card);
+        const saveBtn=document.createElement("button");
+        saveBtn.className="saveCard";
+        saveBtn.textContent="📸 카드 JPG 저장";
+        card.querySelector(".content").appendChild(saveBtn);
+        
+        // Set avatar (seeded by name)
+        const name = it.name || 'hero';
+        const ava = card.querySelector('.avatar');
+        if(ava){ ava.src = `https://i.pravatar.cc/160?u=${encodeURIComponent(name)}`; }
+                grid.appendChild(card);
       });
     });
   }
 
   ["search","sort"].forEach(id=>$(id).addEventListener("input",draw));
   draw();
+
+  // 이미지 저장 기능
+  document.addEventListener('click', (e)=>{
+    if(e.target && e.target.classList.contains('saveCard')){
+      const card = e.target.closest('.card');
+      if(!card) return;
+      html2canvas(card, {backgroundColor: null, scale: 2, ignoreElements: el => el && el.classList && el.classList.contains('saveCard') }).then(canvas=>{
+        const link = document.createElement('a');
+        link.download = `memorial_${Date.now()}.jpg`;
+        link.href = canvas.toDataURL('image/jpeg', 0.95);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }).catch(err=>console.warn('saveCard failed', err));
+    }
+  });
 })();
 </script>
 </body>

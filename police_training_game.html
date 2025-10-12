@@ -21,7 +21,6 @@
   .pill{background:#0b1020;color:#fff;border-radius:999px;padding:8px 12px;font-weight:700;text-decoration:none}
   .hud{margin:6px 0 2px}
   #pDice,#eDice{font-size:92px;display:inline-block}
-  /* 주사위 더 격렬 + 0.3초 */
   .shake{animation:shake .3s ease}
   @keyframes shake{
     0%{transform:translate(-2px,0) scale(1) rotate(0deg)}
@@ -106,7 +105,7 @@
     <div>⚔️ 적: <span id="enemyName"></span> (체력: <span id="enemyHP"></span>)</div>
     <div style="margin-top:6px">
       <button id="btnRoll" class="ok">🎲 굴리기</button>
-      <button id="btnFire" class="ok">🔫 격발</button>
+      <button id="btnFire" class="ok">🔫 격발 (-3💰)</button>
     </div>
     <div class="flex" style="margin:6px 0">
       나: <span id="pDice">🎲</span> 적: <span id="eDice">🎲</span>
@@ -118,7 +117,7 @@
         <button id="btnRest">🛀🏼 씻고 출근 (❤️5)</button>
         <button id="btnBuyBag">💉 구급함 (5💰)</button>
         <button id="btnPromote">🎖️ 승진 (<span id="cost">10</span>💰)</button>
-        <button id="btnAmmo" class="ok">🔄 다음 탄종: 9mm</button>
+        <button id="btnAmmo" class="ok">🔄 다음 턴 탄종: 9mm</button>
       </div>
     </div>
 
@@ -161,7 +160,6 @@
   const DICE = ['⚀','⚁','⚂','⚃','⚄','⚅'];
   const ENEMIES = {1:["🧟‍♂️ 주취자","🦹‍♂️ 보이스피싱"],2:["🤹‍♂️ 사기꾼","👨‍💻 스토커"],3:["🧌 조폭","💊 마약사범"],4:["👤 간첩","🪖 테러리스트"],5:["👨‍✈️ 부패한 경찰","🗣️ 내란 우두머리"]};
   const MAX_LEVEL = 99;
-  const SKEY = "police_memorials";
 
   const el = {
     start:$("start"), game:$("game"), pop:$("pop"), popTitle:$("popTitle"), popList:$("popList"), popOk:$("popOk"),
@@ -185,7 +183,7 @@
     defeated:{}, bonusMonths:0, rankStartMonths:0, changeLog:[],
     monthsAccum:0, finalGold:0,
     equalStreak:0,
-    ammo:'22lr' // '22lr' or '9mm'
+    ammo:'22lr'
   };
 
   const rint=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
@@ -193,14 +191,10 @@
   const orgName=()=> state.org==='coast'?'해양경찰':'경찰';
   const enemyTier=lv=> lv<=10?1:lv<=25?2:lv<=45?3:lv<=70?4:5;
   const setBtns=on=>{ el.btnRoll.disabled=!on; el.btnFire.disabled=!on; };
-  const fireLabel=()=>{
-    if(state.ammo==='9mm') return "🔫 격발 (-4💰)";
-    return "🔫 격발 (-3💰)";
-  };
-  const updateFireLabel=()=>{ el.btnFire.textContent = fireLabel(); };
+  const updateFireLabel=()=>{ el.btnFire.textContent = (state.ammo==='9mm') ? "🔫 격발 (-4💰)" : "🔫 격발 (-3💰)"; };
   const updateHUD=()=>{
     el.orgBadge.textContent=(state.org==='coast'?'🚤 해양경찰':'🚓 경찰');
-    el.emoji.textContent=emojiByGender();
+    el.emoji.textContent=state.gender==='F'?'👮‍♀️':(state.gender==='M'?'👮‍♂️':'👮');
     el.rank.textContent=RANKS[state.rankIdx];
     el.name.textContent=state.name;
     el.hp.textContent=state.hp;
@@ -269,9 +263,9 @@
         changeLog: state.changeLog,
         finalGold: state.finalGold || state.gold || 0
       };
-      const arr = JSON.parse(localStorage.getItem(SKEY)||"[]");
+      const arr = JSON.parse(localStorage.getItem("police_memorials")||"[]");
       arr.push(entry);
-      localStorage.setItem(SKEY, JSON.stringify(arr));
+      localStorage.setItem("police_memorials", JSON.stringify(arr));
     }catch(e){ console.warn("saveMemorial failed", e); }
   }
 
@@ -304,17 +298,32 @@
     state.changeLog.push(`${icon} ${prev} ${when} ${now} ${kind}`);
   };
 
+  function nextCostForRank(idx){
+    if(idx===0) return 7;  // 의경 -> 순경
+    if(idx===1) return 10; // 순경 -> 경장
+    let cost = 10; // 1->2
+    let curIdx = 1;
+    while(curIdx < idx){
+      const afterIdx = curIdx + 1;
+      const mult = (afterIdx >= 6) ? 1.3 : 1.5; // 경정부터 1.3배
+      cost = Math.ceil(cost * mult);
+      curIdx += 1;
+    }
+    return cost; // idx -> idx+1
+  }
+
   function handleVictory(){
     if(state.hp<=0) return checkDeath();
     addDefeated();
-    state.monthsAccum += perKillMonths();
+    state.monthsAccum += (state.rankIdx>=2 && state.rankIdx<=6)?6:3;
     let text="";
     if(state.enemyHP<=-15){
       if(state.rankIdx===0){ state.ended=true; return openEnding("추방"); }
       const before=totalMonths();
       const prevIdx=state.rankIdx;
       state.rankIdx-=1;
-      const bonus=rankBonusMonths(state.rankIdx);
+      state.cost = nextCostForRank(state.rankIdx); // 강등 후 비용 재계산
+      const bonus=(state.rankIdx<=3?5:(state.rankIdx<=7?11:5));
       const servedPrev=(before+bonus)-state.rankStartMonths;
       logRankChange("강등", prevIdx, state.rankIdx, servedPrev);
       state.maxHP=Math.max(10,state.maxHP-10);
@@ -327,14 +336,12 @@
     }else{
       const earned=grantGold(); text=`적을 제압했다! +${earned} 골드 획득!`;
     }
-    // 탄종 선택 버튼 갱신
-    el.btnAmmo.textContent = state.ammo==='22lr' ? "🔄 다음 탄종: 9mm" : "🔄 다음 탄종: 22lr";
+    el.btnAmmo.textContent = state.ammo==='22lr' ? "🔄 다음 턴 탄종: 9mm" : "🔄 다음 턴 탄종: 22lr";
     el.msg.textContent=text; setBtns(false); el.after.style.display="block";
     if(state.level>=MAX_LEVEL){ state.ended=true; openEnding("정년퇴직"); }
     else{ state.level+=1; }
   }
 
-  // 주사위 0.3초 애니메이션
   const rollAnim=(p,e)=>{
     el.pDice.classList.add("shake"); el.eDice.classList.add("shake");
     setTimeout(()=>{
@@ -343,7 +350,6 @@
     },300);
   };
 
-  // 같은 주사위 연속 보상: 2회 이상 매회 +10
   function handleEqualStreak(p,e){
     if(p===e){
       state.equalStreak += 1;
@@ -374,11 +380,7 @@
   };
 
   function fireStats(){
-    if(state.ammo==='9mm'){
-      return {cost:4, hit:0.45, min:35, max:45};
-    }else{
-      return {cost:3, hit:0.50, min:20, max:25};
-    }
+    return (state.ammo==='9mm') ? {cost:4, hit:0.45, min:35, max:45} : {cost:3, hit:0.50, min:20, max:25};
   }
 
   el.btnFire.onclick=()=>{
@@ -391,13 +393,12 @@
     if(ok){
       const dmg=rint(st.min,st.max);
       el.msg.textContent=`🎯 적중! (-${dmg} 데미지)`;
-      setTimeout(()=>{ // 1초 후 적용
+      setTimeout(()=>{
         state.enemyHP-=dmg; updateHUD();
         if(state.enemyHP<=0){ if(checkDeath()) return; handleVictory(); return; }
-        // 반격
         const e=rint(1,6); el.pDice.textContent="⛔"; el.eDice.textContent=DICE[e-1];
-        state.equalStreak=0; // 무력화이므로 연속 종료
-        setTimeout(()=>{ // 1초 후 피해 적용
+        state.equalStreak=0;
+        setTimeout(()=>{
           state.hp-=e; updateHUD(); if(checkDeath()) return;
           el.msg.textContent="적의 반격! 내 주사위는 한 턴 무력화되었습니다.";
           setBtns(true);
@@ -406,7 +407,6 @@
     }else{
       el.msg.textContent="❌ 실패!";
       setTimeout(()=>{
-        // 반격
         const e=rint(1,6); el.pDice.textContent="⛔"; el.eDice.textContent=DICE[e-1];
         state.equalStreak=0;
         setTimeout(()=>{
@@ -418,7 +418,6 @@
     }
   };
 
-  // 탄종 전환 버튼
   el.btnAmmo.onclick=()=>{
     if(state.ammo==='22lr'){
       state.ammo='9mm';
@@ -428,8 +427,7 @@
       openPopup("🔄 탄종 전환", "다음 턴부터 22lr탄을 사용합니다. (-3💰 / 50% / 20~25)");
     }
     updateFireLabel();
-    // after 영역에선 상대 버튼만 보여주고 싶다면 텍스트만 갱신
-    el.btnAmmo.textContent = state.ammo==='22lr' ? "🔄 다음 탄종: 9mm" : "🔄 다음 탄종: 22lr";
+    el.btnAmmo.textContent = state.ammo==='22lr' ? "🔄 다음 턴 탄종: 9mm" : "🔄 다음 턴 탄종: 22lr";
   };
 
   el.btnRest.onclick=()=>{ if(state.ended) return; if(checkDeath()) return; state.hp=Math.min(state.maxHP,state.hp+5); updateHUD(); spawnEnemy(); };
@@ -440,56 +438,43 @@
     if(state.gold<state.cost){ el.msg.textContent="💰 골드가 부족합니다!"; return; }
     const before=totalMonths(); const prevIdx=state.rankIdx; const prev=RANKS[prevIdx];
     state.gold-=state.cost; state.rankIdx+=1;
-    const bonus=rankBonusMonths(state.rankIdx);
+    state.cost = nextCostForRank(state.rankIdx); // 승진 후 다시 계산
+    const bonus=(state.rankIdx<=3?5:(state.rankIdx<=7?11:5));
     const servedPrev=(before+bonus)-state.rankStartMonths;
     logRankChange("승진", prevIdx, state.rankIdx, servedPrev);
     state.maxHP+=10; state.hp=Math.min(state.maxHP,state.hp+99);
-    const mult = (state.rankIdx>=6)? 1.3 : 1.5;
-    state.cost = Math.ceil(state.cost * mult);
     state.bonusMonths+=bonus; state.rankStartMonths=before+bonus;
     updateHUD(); openPopup("🎖️ 승진!",[`계급: ${prev} → ${RANKS[state.rankIdx]}`,`최대체력 +10`]);
     checkResignByWealth();
   };
   el.btnUseBag.onclick=()=>{ if(state.ended) return; if(state.bags>0){ state.bags-=1; state.hp=Math.min(state.maxHP,state.hp+30); updateHUD(); } else{ el.msg.textContent="💉 구급함이 없습니다!"; } };
 
-  // UI 선택 표시 토글
   const sel=(btn,on)=>btn.classList.toggle("selected",on);
   el.orgPolice.onclick=()=>{ state.org='police'; sel(el.orgPolice,true); sel(el.orgCoast,false); };
   el.orgCoast.onclick=()=>{ state.org='coast'; sel(el.orgCoast,true); sel(el.orgPolice,false); };
   el.genderM.onclick=()=>{ state.gender='M'; sel(el.genderM,true); sel(el.genderF,false); };
   el.genderF.onclick=()=>{ state.gender='F'; sel(el.genderF,true); sel(el.genderM,false); };
   el.rankStartA.onclick=()=>{ state.startRankIdx=1; sel(el.rankStartA,true); sel(el.rankStartB,false); };
-  el.rankStartB.onclick=()=>{ state.startRankIdx=4; sel(el.rankStartB,true); sel(el.rankStartA,false); }; // 경위
-
-  function costForRank(idx){
-    let cost = 10;
-    let curRank = 1;
-    while(curRank < idx){
-      const mult = (curRank+1 >= 6) ? 1.3 : 1.5;
-      cost = Math.ceil(cost * mult);
-      curRank += 1;
-    }
-    return cost;
-  }
-
-  function resetSelections(){
-    // 버튼 선택 시각상태 초기화
-    [el.orgPolice, el.orgCoast, el.genderM, el.genderF, el.rankStartA, el.rankStartB].forEach(b=>b.classList.remove('selected'));
-    // 입력 초기화
-    $("nm").value="";
-  }
+  el.rankStartB.onclick=()=>{ state.startRankIdx=4; sel(el.rankStartB,true); sel(el.rankStartA,false); };
 
   function applyStartRank(){
     state.rankIdx = state.startRankIdx;
     state.entryRank = RANKS[state.startRankIdx];
     if(state.startRankIdx===4){ // 경위
       state.maxHP = 80; state.hp = 80; state.gold = 0;
-      state.cost = costForRank(4); // 경위→경감
+      state.cost = nextCostForRank(4); // 경위 -> 경감
     }else{ // 순경
-      state.maxHP = 50; state.hp = 50; state.gold = 0; state.cost = 10;
+      state.rankIdx = 1; state.entryRank = RANKS[1];
+      state.maxHP = 50; state.hp = 50; state.gold = 0;
+      state.cost = nextCostForRank(1); // 10
     }
-    state.ammo='22lr'; // 시작은 기본 탄
+    state.ammo='22lr';
     updateFireLabel();
+  }
+
+  function resetSelections(){
+    [el.orgPolice, el.orgCoast, el.genderM, el.genderF, el.rankStartA, el.rankStartB].forEach(b=>b.classList.remove('selected'));
+    $("nm").value="";
   }
 
   function backToStart(fromEnding=false){
@@ -502,7 +487,7 @@
     if(fromEnding){
       el.ending.style.display="none";
       el.start.style.display="flex";
-      resetSelections(); // 조직/성별/계급 선택 초기화
+      resetSelections();
       setBtns(true);
     }else{
       el.btnRestart.style.display="none"; setBtns(true); spawnEnemy();
@@ -520,7 +505,6 @@
     el.start.style.display="none"; el.game.style.display="block"; setBtns(true); spawnEnemy(); updateHUD();
   };
 
-  // 초기화 진입점
   backToStart(false);
 })();
 </script>

@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>명예•추모관 — 경찰 양성</title>
 <style>
-  :root{
-    --bg1:#0ea5e9; --bg2:#6366f1; --ink:#111; --paper:#fff;
-  }
+  :root{ --bg1:#0ea5e9; --bg2:#6366f1; --ink:#111; --paper:#fff; }
   *{box-sizing:border-box}
   body{margin:0;font-family:Arial,system-ui,sans-serif;color:#fff;background:linear-gradient(90deg,var(--bg1),var(--bg2))}
   header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:14px}
@@ -65,7 +63,6 @@
     {key:"의원면직-화이어족",  title:"📝 의원면직-화이어족",  colors:["#8e2de2","#4a00e0"]},
   ];
 
-  // 높은 계급 우선 정렬 (치안총감 > ... > 의경)
   const RANKS = ["의경","순경","경장","경사","경위","경감","경정","총경","경무관","치안감","치안정감","치안총감"];
   const rankIndex = (r)=>{
     const i = RANKS.indexOf(r||"");
@@ -88,8 +85,8 @@
       else if(sort==="old") list.sort((a,b)=>(a.id||0)-(b.id||0));
       else if(sort==="months") list.sort((a,b)=>(b.months||0)-(a.months||0));
       else if(sort==="name") list.sort((a,b)=> (a.name||"").localeCompare(b.name||"","ko"));
-      else if(sort==="rank") list.sort((a,b)=> (rankIndex(b.currentRank)-rankIndex(a.currentRank))); // 높은 계급 우선
-      else list.sort((a,b)=>(b.id||0)-(a.id||0)); // 기본: 최신
+      else if(sort==="rank") list.sort((a,b)=> (rankIndex(b.currentRank)-rankIndex(a.currentRank)));
+      else list.sort((a,b)=>(b.id||0)-(a.id||0));
     };
 
     groups.forEach(g=>{

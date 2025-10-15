@@ -16,7 +16,7 @@
   h2.section{margin:18px 14px 8px}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;padding: 8px 14px 20px}
   .card{border-radius:16px;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,.22);transform:translateY(6px);
-        transition:transform .2s ease, box-shadow .2s ease, opacity .3s ease; opacity:.98}
+        transition:transform .2s ease, box-shadow .2s ease, opacity .3s ease; opacity:.98; position:relative}
   .card:hover{transform:translateY(2px);box-shadow:0 18px 52px rgba(0,0,0,.28)}
   .top{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(0,0,0,.12)}
   .chip{padding:4px 8px;border-radius:999px;font-weight:800;background:#fff;color:#111}
@@ -28,6 +28,7 @@
   .splitter{height:1px;background:linear-gradient(90deg,rgba(255,255,255,.6),rgba(255,255,255,.08));margin:8px 0}
   .secwrap{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:14px;margin:10px 14px;padding:6px 0}
   .saveCard{margin-top:8px;padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-weight:800;background:#0b1020;color:#fff}
+  .delCard{margin-top:8px;margin-left:8px;padding:8px 12px;border-radius:10px;border:0;cursor:pointer;font-weight:800;background:#7f1d1d;color:#fff}
 .banner{margin:10px 14px;padding:14px;border-radius:16px;
   background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.08));
   border:1px solid rgba(255,255,255,.35);box-shadow:0 10px 28px rgba(0,0,0,.18)}
@@ -49,6 +50,7 @@
   <div class="controls">
     <input id="search" type="text" placeholder="이름·조직·계급 검색">
     <select id="sort">
+      <option value="order">🧭 엔딩순서</option>
       <option value="new">🕓 최신순</option>
       <option value="old">📜 오래된순</option>
       <option value="rank">🎖️ 계급순</option>
@@ -69,28 +71,27 @@
   const wrap=$("wrap");
   const achv=$("achv");
 
+  // 엔딩 순서: 명예퇴직, 정년퇴직, 파면, 의원면직-자산가, 의원면직, 순직
   const groups=[
-    {key:"순직",               title:"🪦 순직",                colors:["#b22222","#ff6b6b"]},
-    {key:"명예퇴직-청장퇴직",  title:"🏅 명예퇴직-청장퇴직",  colors:["#ffd700","#ffb347"]},
+    {key:"명예퇴직",           title:"🏅 명예퇴직",            colors:["#ffd700","#ffb347"]},
     {key:"정년퇴직",           title:"🎖️ 정년퇴직",            colors:["#007bff","#00c6ff"]},
-    {key:"추방",               title:"🚫 추방",                 colors:["#6c757d","#adb5bd"]},
-    {key:"의원면직-화이어족",  title:"📝 의원면직-화이어족",  colors:["#8e2de2","#4a00e0"]},
+    {key:"파면",               title:"🚫 파면",                 colors:["#6c757d","#adb5bd"]},
+    {key:"의원면직-자산가",    title:"📝 의원면직-자산가",    colors:["#8e2de2","#4a00e0"]},
+    {key:"의원면직",           title:"📝 의원면직",            colors:["#8e2de2","#4a00e0"]},
+    {key:"순직",               title:"🪦 순직",                colors:["#b22222","#ff6b6b"]}
   ];
 
   const RANKS = ["의경","순경","경장","경사","경위","경감","경정","총경","경무관","치안감","치안정감","치안총감"];
-  const rankIndex = (r)=>{
-    const i = RANKS.indexOf(r||"");
-    return i>=0? i : -1;
-  };
+  const rankIndex = (r)=>{ const i = RANKS.indexOf(r||""); return i>=0? i : -1; };
 
   function hasAllEndings(data){
-      const need = ["순직","명예퇴직-청장퇴직","정년퇴직","추방","의원면직-화이어족"];
+      const need = ["순직","명예퇴직","정년퇴직","파면","의원면직"];
       const done = new Set((data||[]).map(x=>x.endTitle||""));
       return need.every(k=> Array.from(done).some(t=> t.includes(k)));
     }
-    function draw(){
+  function draw(){
     const q=($("search").value||"").trim();
-    const sort=($("sort").value||"new");
+    const sort=($("sort").value||"order");
     const data=JSON.parse(localStorage.getItem(SKEY)||"[]");
 
     wrap.innerHTML="";
@@ -98,12 +99,7 @@
     if(!data.length){ wrap.innerHTML=`<div class="secwrap" style="padding:18px;text-align:center">기록이 없습니다. 게임에서 엔딩을 본 뒤 자동 저장됩니다.</div>`; return; }
 
     if(hasAllEndings(data)){
-      achv.innerHTML = `<div class="ribbon">🎉 당신은 모든 업적을 달성하였습니다. <small>(순직·명예퇴직·정년퇴직·추방·의원면직)</small><br>📫 문의: <span id='mailto' class='copy'>finalpjh@gmail.com</span></div>`;
-      // Copy-to-clipboard
-      setTimeout(()=>{
-        const m=document.getElementById('mailto');
-        if(m){ m.onclick=()=>{ navigator.clipboard?.writeText('finalpjh@gmail.com'); m.textContent='복사됨: finalpjh@gmail.com'; setTimeout(()=>m.textContent='finalpjh@gmail.com',1600); }; }
-      }, 0);
+      achv.innerHTML = `<div class="ribbon">🎉 주요 업적을 모두 경험했습니다.<br><small>순직·명예퇴직·정년퇴직·파면·의원면직</small></div>`;
     }
 
     let items=data.slice();
@@ -114,14 +110,13 @@
       else if(sort==="old") list.sort((a,b)=>(a.id||0)-(b.id||0));
       else if(sort==="months") list.sort((a,b)=>(b.months||0)-(a.months||0));
       else if(sort==="name") list.sort((a,b)=> (a.name||"").localeCompare(b.name||"","ko"));
-      else if(sort==="rank") list.sort((a,b)=> (rankIndex(b.currentRank)-rankIndex(a.currentRank))); // 높은 계급 우선
-      else list.sort((a,b)=>(b.id||0)-(a.id||0)); // 기본: 최신
+      else if(sort==="rank") list.sort((a,b)=> (rankIndex(b.currentRank)-rankIndex(a.currentRank)));
     };
 
     groups.forEach(g=>{
       const sect=items.filter(x=>(x.endTitle||"").includes(g.key));
       if(!sect.length) return;
-      sortFn(sect);
+      if(sort!=="order") sortFn(sect);
 
       const sec=document.createElement("section");
       sec.className="secwrap";
@@ -153,18 +148,41 @@
             <div class="splitter"></div>
             <div class="meta">제압 목록: ${kills}</div>
             <div class="meta">승진/강등: ${hist}</div>
+            <div style="margin-top:8px">
+              <button class="saveCard">📸 카드 JPG 저장</button>
+              <button class="delCard">🗑️ 삭제</button>
+            </div>
           </div>
         `;
-        const saveBtn=document.createElement("button");
-        saveBtn.className="saveCard";
-        saveBtn.textContent="📸 카드 JPG 저장";
-        card.querySelector(".content").appendChild(saveBtn);
-        
-        // Set avatar (seeded by name)
         const name = it.name || 'hero';
         const ava = card.querySelector('.avatar');
         if(ava){ ava.src = `https://i.pravatar.cc/160?u=${encodeURIComponent(name)}`; }
-                grid.appendChild(card);
+        grid.appendChild(card);
+
+        // actions
+        const saveBtn = card.querySelector(".saveCard");
+        const delBtn = card.querySelector(".delCard");
+        saveBtn.addEventListener("click",()=>{
+          html2canvas(card, {backgroundColor: null, scale: 2, ignoreElements: el => el && el.classList && (el.classList.contains('saveCard')||el.classList.contains('delCard')) }).then(canvas=>{
+            const link = document.createElement('a');
+            link.download = `memorial_${Date.now()}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 0.95);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          });
+        });
+        delBtn.addEventListener("click",()=>{
+          const data = JSON.parse(localStorage.getItem(SKEY)||"[]");
+          const idx = data.findIndex(d=> d.id===it.id);
+          if(idx===-1) return;
+          const noAsk = /(순직|의원면직)/.test(it.endTitle||"");
+          if(noAsk || confirm("정말 삭제하시겠습니까?")){
+            data.splice(idx,1);
+            localStorage.setItem(SKEY, JSON.stringify(data));
+            draw();
+          }
+        });
       });
     });
   }
@@ -172,21 +190,6 @@
   ["search","sort"].forEach(id=>$(id).addEventListener("input",draw));
   draw();
 
-  // 이미지 저장 기능
-  document.addEventListener('click', (e)=>{
-    if(e.target && e.target.classList.contains('saveCard')){
-      const card = e.target.closest('.card');
-      if(!card) return;
-      html2canvas(card, {backgroundColor: null, scale: 2, ignoreElements: el => el && el.classList && el.classList.contains('saveCard') }).then(canvas=>{
-        const link = document.createElement('a');
-        link.download = `memorial_${Date.now()}.jpg`;
-        link.href = canvas.toDataURL('image/jpeg', 0.95);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }).catch(err=>console.warn('saveCard failed', err));
-    }
-  });
 })();
 </script>
 </body>

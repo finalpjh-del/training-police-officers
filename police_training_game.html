@@ -124,7 +124,7 @@
 
     <div style="margin-top:6px">
       <button id="btnUseBag">💉❤️30</button>
-      <button id="btnRestart" class="ghost" style="display:none">🔄 재시작</button>
+      <button id="btnResign" class="ghost">🚪 의원면직</button>
     </div>
   </div>
 
@@ -148,7 +148,7 @@
       <ul id="kill"></ul>
       <div class="small">엔딩 내용이 명예•추모관에 저장되었습니다.</div>
       <div class="cta">
-        <button id="endExit" class="ok" disabled>나가기</button>
+        <button id="endExit" class="ok" disabled>의원면직</button>
         <a id="gotoGallery" href="honor_memorial.html" class="pill" style="text-decoration:none">명예•추모관 열기</a>
       </div>
     </div>
@@ -162,13 +162,11 @@
   const ENEMIES = {1:["🧟‍♂️ 주취자","🦹‍♂️ 보이스피싱"],2:["🤹‍♂️ 사기꾼","👨‍💻 스토커"],3:["🧌 조폭","💊 마약사범"],4:["👤 간첩","🪖 테러리스트"],5:["👨‍✈️ 부패한 경찰","🗣️ 내란 우두머리"]};
   const MAX_LEVEL = 99;
 
-  
-  // 로고 자동 로더: svg/png/jpg/webp 순차 시도 + 캐시버스터
   function loadLogo(imgEl, baseName){
     const exts = ["svg","png","jpg","jpeg","webp"];
     const fallbackSVG = baseName==="police"
-      ? 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 200\"><rect rx=\"28\" width=\"200\" height=\"200\" fill=\"#3b82f6\"/><circle cx=\"100\" cy=\"85\" r=\"38\" fill=\"#fde68a\"/><text x=\"100\" y=\"185\" text-anchor=\"middle\" font-size=\"20\" fill=\"#fff\" font-family=\"Arial\" font-weight=\"bold\">POLICE</text></svg>')
-      : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 200\"><rect rx=\"28\" width=\"200\" height=\"200\" fill=\"#22d3ee\"/><path d=\"M20 130c30-10 60 10 90 0s50-20 70 0v30H20z\" fill=\"#ecfeff\"/><text x=\"100\" y=\"185\" text-anchor=\"middle\" font-size=\"18\" fill=\"#0b1020\" font-family=\"Arial\" font-weight=\"bold\">COAST</text></svg>');
+      ? 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect rx="28" width="200" height="200" fill="#3b82f6"/><circle cx="100" cy="85" r="38" fill="#fde68a"/><text x="100" y="185" text-anchor="middle" font-size="20" fill="#fff" font-family="Arial" font-weight="bold">POLICE</text></svg>')
+      : 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect rx="28" width="200" height="200" fill="#22d3ee"/><path d="M20 130c30-10 60 10 90 0s50-20 70 0v30H20z" fill="#ecfeff"/><text x="100" y="185" text-anchor="middle" font-size="18" fill="#0b1020" font-family="Arial" font-weight="bold">COAST</text></svg>');
     let i=0;
     function tryNext(){
       if(i>=exts.length){ imgEl.src=fallbackSVG; return; }
@@ -190,7 +188,7 @@
     enemyName:$("enemyName"), enemyHP:$("enemyHP"), btnRoll:$("btnRoll"), btnFire:$("btnFire"),
     pDice:$("pDice"), eDice:$("eDice"), msg:$("msg"),
     after:$("after"), btnRest:$("btnRest"), btnBuyBag:$("btnBuyBag"), btnPromote:$("btnPromote"), cost:$("cost"), btnUseBag:$("btnUseBag"),
-    btnRestart:$("btnRestart"), btnAmmo:$("btnAmmo"),
+    btnResign:$("btnResign"), btnAmmo:$("btnAmmo"),
     ending:$("ending"), endExit:$("endExit"), endTitle:$("endTitle"), endList:$("endList"), hist:$("hist"), kill:$("kill")
   };
 
@@ -200,10 +198,10 @@
     level:1, maxHP:50, hp:50, gold:0, bags:0,
     enemyHP:0, enemyLabel:"", cost:10,
     ended:false, startDate:new Date(),
-    defeated:{}, bonusMonths:0, rankStartMonths:0, changeLog:[],
+    defeated:{}, changeLog:[],
     monthsAccum:0, finalGold:0,
-    equalStreak:0,
-    ammo:'22lr'
+    equalStreak:0, ammo:'22lr',
+    demotionCount:0
   };
 
   const rint=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
@@ -233,38 +231,44 @@
   const pickEnemy=()=>{ const t=enemyTier(state.level); const list=ENEMIES[t]; const name=list[rint(0,list.length-1)]; state.enemyLabel=`Lv.${state.level} ${name}`; state.enemyHP=9+state.level*1; };
   const spawnEnemy=()=>{ el.after.style.display="none"; pickEnemy(); updateHUD(); setBtns(true); el.msg.textContent="⚔️ 제압 중..."; el.pDice.textContent="🎲"; el.eDice.textContent="🎲"; state.equalStreak=0; };
 
-  const totalMonths=()=> state.monthsAccum + state.bonusMonths;
-  function addMonths(base){ return base + (Math.random()<0.5 ? 1 : 0); }
-  function perKillMonths(){ return addMonths((state.rankIdx>=2 && state.rankIdx<=6)?6:3); }
-  function bonusMonthsByRank(idx){ return addMonths(idx<=3?5:(idx<=7?11:5)); }
+  const totalMonths=()=> state.monthsAccum;
 
-  function bonusByLevel(lv){
-    if(lv>=90) return 12;
-    if(lv>=80) return 10;
-    if(lv>=70) return 8;
-    if(lv>=60) return 6;
-    if(lv>=50) return 4;
-    if(lv>=40) return 2;
-    if(lv>=30) return 1;
-    return 0;
-  }
-
-  function checkResignByWealth(){
-    if(!state.ended && state.gold>=1000){
+  function checkAutoDismiss(){
+    if(state.demotionCount>=5 && !state.ended){
       state.ended=true;
-      state.finalGold = state.gold;
-      openEnding("의원면직-화이어족");
+      openEnding("파면");
       return true;
     }
     return false;
+  }
+
+  const logRankChange=(kind, prevIdx, nowIdx)=>{
+    const R=RANKS, prev=R[prevIdx], now=R[nowIdx];
+    const icon=kind==='승진'?'⬆️':'⬇️';
+    state.changeLog.push(`${icon} ${prev} → ${now} ${kind}`);
+  };
+
+  function nextCostForRank(idx){
+    if(idx===0) return 7;  // 의경 -> 순경
+    if(idx===1) return 10; // 순경 -> 경장
+    let cost = 10; // 1->2
+    let curIdx = 1;
+    while(curIdx < idx){
+      const afterIdx = curIdx + 1;
+      const mult = (afterIdx >= 6) ? 1.3 : 1.5; // 경정부터 1.3배
+      cost = Math.ceil(cost * mult);
+      curIdx += 1;
+    }
+    return cost; // idx -> idx+1
   }
 
   function grantGold(){
     let earn=0;
     if(state.level<=10) earn=2; else if(state.level<=25) earn=4; else if(state.level<=45) earn=8; else if(state.level<=70) earn=16; else earn=32;
     if(state.rankIdx>0) earn+=state.rankIdx;
-    earn += bonusByLevel(state.level);
-    state.gold+=earn; updateHUD(); checkResignByWealth(); return earn;
+    // 레벨 보너스 유지
+    if(state.level>=90) earn+=12; else if(state.level>=80) earn+=10; else if(state.level>=70) earn+=8; else if(state.level>=60) earn+=6; else if(state.level>=50) earn+=4; else if(state.level>=40) earn+=2; else if(state.level>=30) earn+=1;
+    state.gold+=earn; updateHUD(); return earn;
   }
   const addDefeated=()=>{ const pure=state.enemyLabel.replace(/Lv\.[0-9]+\s+/,''); state.defeated[pure]=(state.defeated[pure]||0)+1; };
 
@@ -290,67 +294,64 @@
     }catch(e){ console.warn("saveMemorial failed", e); }
   }
 
+  function addLongServiceLines(list){
+    const m = totalMonths();
+    if(m>=360) list.push("🏅 30년 장기근속");
+    else if(m>=300) list.push("🏅 25년 장기근속");
+    else if(m>=240) list.push("🏅 20년 장기근속");
+  }
+
   function openEnding(title){
     el.endTitle.textContent = title;
     const mAll=totalMonths(), y=Math.floor(mAll/12), m=mAll%12;
     const startStr = new Date(state.startDate).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
     const lastGold = state.finalGold || state.gold || 0;
-    el.endList.innerHTML=[
+    const lines=[
       `입사 : ${startStr} ${orgName()} ${state.entryRank}`,
       `현재 계급 : ${RANKS[state.rankIdx]}`,
       `근무기간 : ${String(y).padStart(2,'0')}년 ${String(m).padStart(2,'0')}개월`,
       `마지막 보유 골드 : ${lastGold}`
-    ].map(s=>`<li>${s}</li>`).join("");
+    ];
+    if(title.startsWith("의원면직")) addLongServiceLines(lines);
+    el.endList.innerHTML = lines.map(s=>`<li>${s}</li>`).join("");
     el.hist.innerHTML = state.changeLog.length? state.changeLog.map(s=>`<li>• ${s}</li>`).join(""):`<li class="small">기록 없음</li>`;
     const ks=Object.keys(state.defeated);
     el.kill.innerHTML = ks.length? ks.map(k=>`<li>${k}: ${state.defeated[k]}명</li>`).join(""):`<li class="small">기록 없음</li>`;
     saveMemorial(title);
-    el.ending.style.display="flex"; el.endExit.disabled=true; setTimeout(()=>el.endExit.disabled=false,1500);
+    el.ending.style.display="flex"; el.endExit.disabled=true; setTimeout(()=>el.endExit.disabled=false,1200);
     el.endExit.onclick=()=>{ if(!el.endExit.disabled){ el.ending.style.display="none"; backToStart(true);} };
   }
 
-  const checkDeath=()=>{ if(state.hp<=0){ state.ended=true; setBtns(false); el.after.style.display='none'; openEnding("순직"); return true;} return false; };
-
-  const logRankChange=(kind, prevIdx, nowIdx, servedPrev)=>{
-    const R=RANKS, prev=R[prevIdx], now=R[nowIdx];
-    const y=Math.floor(servedPrev/12), m=servedPrev%12;
-    const when = (y>0 && m===0)? `${y}년 차` : (y===0? `${m}개월 차`:`${y}년 ${m}개월 차`);
-    const icon=kind==='승진'?'⬆️':'⬇️';
-    state.changeLog.push(`${icon} ${prev} ${when} ${now} ${kind}`);
-  };
-
-  function nextCostForRank(idx){
-    if(idx===0) return 7;  // 의경 -> 순경
-    if(idx===1) return 10; // 순경 -> 경장
-    let cost = 10; // 1->2
-    let curIdx = 1;
-    while(curIdx < idx){
-      const afterIdx = curIdx + 1;
-      const mult = (afterIdx >= 6) ? 1.3 : 1.5; // 경정부터 1.3배
-      cost = Math.ceil(cost * mult);
-      curIdx += 1;
+  const checkDeath=()=>{
+    if(state.hp<=0){
+      state.ended=true; setBtns(false); el.after.style.display='none';
+      // 순직 시 한계급 특진 (치안총감 제외)
+      const TOP=RANKS.length-1;
+      if(state.rankIdx<TOP) state.rankIdx+=1;
+      updateHUD();
+      openEnding("순직");
+      return true;
     }
-    return cost; // idx -> idx+1
-  }
+    return false;
+  };
 
   function handleVictory(){
     if(state.hp<=0) return checkDeath();
     addDefeated();
-    state.monthsAccum += perKillMonths();
+    // 근무 개월수: 전투당 4개월 고정
+    state.monthsAccum += 4;
     let text="";
     if(state.enemyHP<=-15){
-      if(state.rankIdx===0){ state.ended=true; return openEnding("추방"); }
-      const before=totalMonths();
+      if(state.rankIdx===0){ state.ended=true; return openEnding("파면"); }
       const prevIdx=state.rankIdx;
       state.rankIdx-=1;
-      state.cost = nextCostForRank(state.rankIdx); // 강등 후 비용 재계산
-      const bonus = bonusMonthsByRank(state.rankIdx);
-      const servedPrev=(before+bonus)-state.rankStartMonths;
-      logRankChange("강등", prevIdx, state.rankIdx, servedPrev);
+      state.demotionCount += 1;
+      state.cost = nextCostForRank(state.rankIdx);
       state.maxHP=Math.max(10,state.maxHP-10);
       state.hp=Math.min(state.hp,state.maxHP);
-      state.bonusMonths+=bonus; state.rankStartMonths=before+bonus;
+      logRankChange("강등", prevIdx, state.rankIdx);
       updateHUD(); openPopup("⬇️ 강등",[`계급: ${RANKS[prevIdx]} → ${RANKS[state.rankIdx]}`,`최대체력 -10`]);
+      if(checkAutoDismiss()) return;
       text="적 사망, 강등!";
     }else if(state.enemyHP<=-10){
       text="과잉진압 보상없음";
@@ -365,6 +366,7 @@
 
   const rollAnim=(p,e)=>{
     el.pDice.classList.add("shake"); el.eDice.classList.add("shake");
+    el.btnRoll.disabled = true; // 0.3초 동안 재클릭 방지
     setTimeout(()=>{
       el.pDice.classList.remove("shake"); el.eDice.classList.remove("shake");
       el.pDice.textContent=DICE[p-1]; el.eDice.textContent=DICE[e-1];
@@ -379,7 +381,6 @@
         state.gold += bonus;
         updateHUD();
         openPopup("🎯 연속 동시 적중!", `적과 같은 주사위 ${state.equalStreak}회 연속! 보너스 +${bonus} 골드`);
-        checkResignByWealth();
       }
     }else{
       state.equalStreak = 0;
@@ -400,9 +401,7 @@
     },300);
   };
 
-  function fireStats(){
-    return (state.ammo==='9mm') ? {cost:4, hit:0.45, min:35, max:45} : {cost:3, hit:0.50, min:20, max:25};
-  }
+  function fireStats(){ return (state.ammo==='9mm') ? {cost:4, hit:0.45, min:35, max:45} : {cost:3, hit:0.50, min:20, max:25}; }
 
   el.btnFire.onclick=()=>{
     if(state.ended) return;
@@ -419,10 +418,8 @@
         if(state.enemyHP<=0){ if(checkDeath()) return; handleVictory(); return; }
         const e=rint(1,6); el.pDice.textContent="⛔"; el.eDice.textContent=DICE[e-1];
         state.equalStreak=0;
-        setTimeout(()=>{
-          state.hp-=e; updateHUD(); if(checkDeath()) return;
-          el.msg.textContent="적의 반격! 내 주사위는 한 턴 무력화되었습니다.";
-          setBtns(true);
+        setTimeout(()=>{ state.hp-=e; updateHUD(); if(checkDeath()) return;
+          el.msg.textContent="적의 반격! 내 주사위는 한 턴 무력화되었습니다."; setBtns(true);
         },1000);
       },1000);
     }else{
@@ -430,23 +427,16 @@
       setTimeout(()=>{
         const e=rint(1,6); el.pDice.textContent="⛔"; el.eDice.textContent=DICE[e-1];
         state.equalStreak=0;
-        setTimeout(()=>{
-          state.hp-=e; updateHUD(); if(checkDeath()) return;
-          el.msg.textContent="적의 반격! 내 주사위는 한 턴 무력화되었습니다.";
-          setBtns(true);
+        setTimeout(()=>{ state.hp-=e; updateHUD(); if(checkDeath()) return;
+          el.msg.textContent="적의 반격! 내 주사위는 한 턴 무력화되었습니다."; setBtns(true);
         },1000);
       },1000);
     }
   };
 
   el.btnAmmo.onclick=()=>{
-    if(state.ammo==='22lr'){
-      state.ammo='9mm';
-      openPopup("🔄 탄종 전환", "다음 턴부터 9mm탄을 사용합니다.");
-    }else{
-      state.ammo='22lr';
-      openPopup("🔄 탄종 전환", "다음 턴부터 22lr탄을 사용합니다.");
-    }
+    if(state.ammo==='22lr'){ state.ammo='9mm'; openPopup("🔄 탄종 전환", "다음 턴부터 9mm탄을 사용합니다."); }
+    else{ state.ammo='22lr'; openPopup("🔄 탄종 전환", "다음 턴부터 22lr탄을 사용합니다."); }
     updateFireLabel();
     el.btnAmmo.textContent = state.ammo==='22lr' ? "🔄 다음 턴 탄종: 9mm" : "🔄 다음 턴 탄종: 22lr";
   };
@@ -457,18 +447,40 @@
     if(state.ended) return; if(checkDeath()) return;
     const TOP=RANKS.length-1; if(state.rankIdx>=TOP){ state.ended=true; return openEnding("명예퇴직-청장퇴직"); }
     if(state.gold<state.cost){ el.msg.textContent="💰 골드가 부족합니다!"; return; }
-    const before=totalMonths(); const prevIdx=state.rankIdx; const prev=RANKS[prevIdx];
+    const prevIdx=state.rankIdx; const prev=RANKS[prevIdx];
     state.gold-=state.cost; state.rankIdx+=1;
     state.cost = nextCostForRank(state.rankIdx);
-    const bonus = bonusMonthsByRank(state.rankIdx);
-    const servedPrev=(before+bonus)-state.rankStartMonths;
-    logRankChange("승진", prevIdx, state.rankIdx, servedPrev);
     state.maxHP+=10; state.hp=Math.min(state.maxHP,state.hp+99);
-    state.bonusMonths+=bonus; state.rankStartMonths=before+bonus;
+    logRankChange("승진", prevIdx, state.rankIdx);
     updateHUD(); openPopup("🎖️ 승진!",[`계급: ${prev} → ${RANKS[state.rankIdx]}`,`최대체력 +10`]);
-    checkResignByWealth();
   };
-  el.btnUseBag.onclick=()=>{ if(state.ended) return; if(state.bags>0){ state.bags-=1; state.hp=Math.min(state.maxHP,state.hp+30); updateHUD(); } else{ el.msg.textContent="💉 구급함이 없습니다!"; } };
+
+  // 전투 중 구급함 사용 시 내 턴 소모 + 적의 공격 허용
+  el.btnUseBag.onclick=()=>{
+    if(state.ended) return;
+    if(state.bags<=0){ el.msg.textContent="💉 구급함이 없습니다!"; return; }
+    state.bags-=1; state.hp=Math.min(state.maxHP,state.hp+30); updateHUD();
+    // 전투 중이면 적의 반격 1회
+    if(el.after.style.display!=="block"){
+      setBtns(false);
+      const e=rint(1,6); el.pDice.textContent="⛔"; el.eDice.textContent=DICE[e-1];
+      state.equalStreak=0;
+      setTimeout(()=>{ state.hp-=e; updateHUD(); if(checkDeath()) return;
+        el.msg.textContent="구급함 사용으로 내 턴이 소모되었습니다. 적의 반격!"; setBtns(true);
+      },800);
+    }
+  };
+
+  // 의원면직 버튼 (기존 나가기 대체)
+  el.btnResign.onclick=()=>{
+    if(state.ended) return;
+    state.finalGold = state.gold;
+    const isAssetRich = (state.gold>=500) or (state.gold >= state.cost*3);
+    const title = isAssetRich ? "의원면직-자산가" : "의원면직";
+    openPopup("의원면직 처리", isAssetRich ? "보유자산 조건 충족 — 자산가 엔딩 발동" : "의원면직 엔딩 발동");
+    state.ended = true;
+    setTimeout(()=>openEnding(title), 300);
+  };
 
   const sel=(btn,on)=>btn.classList.toggle("selected",on);
   el.orgPolice.onclick=()=>{ state.org='police'; sel(el.orgPolice,true); sel(el.orgCoast,false); };
@@ -483,11 +495,11 @@
     state.entryRank = RANKS[state.startRankIdx];
     if(state.startRankIdx===4){ // 경위
       state.maxHP = 80; state.hp = 80; state.gold = 0;
-      state.cost = nextCostForRank(4); // 경위 -> 경감
+      state.cost = nextCostForRank(4);
     }else{ // 순경
       state.rankIdx = 1; state.entryRank = RANKS[1];
       state.maxHP = 50; state.hp = 50; state.gold = 0;
-      state.cost = nextCostForRank(1); // 10
+      state.cost = nextCostForRank(1);
     }
     state.ammo='22lr';
     updateFireLabel();
@@ -502,8 +514,8 @@
     Object.assign(state, {
       org:null, gender:null, name:"—", startRankIdx:1, rankIdx:1, entryRank:"순경",
       level:1, maxHP:50, hp:50, gold:0, bags:0, enemyHP:0, enemyLabel:"", cost:10,
-      ended:false, startDate:new Date(), defeated:{}, bonusMonths:0, rankStartMonths:0,
-      changeLog:[], monthsAccum:0, finalGold:0, equalStreak:0, ammo:'22lr'
+      ended:false, startDate:new Date(), defeated:{}, changeLog:[],
+      monthsAccum:0, finalGold:0, equalStreak:0, ammo:'22lr', demotionCount:0
     });
     if(fromEnding){
       el.ending.style.display="none";
@@ -511,7 +523,7 @@
       resetSelections();
       setBtns(true);
     }else{
-      el.btnRestart.style.display="none"; setBtns(true); spawnEnemy();
+      setBtns(true); spawnEnemy();
     }
     updateHUD();
   }
@@ -527,8 +539,6 @@
   };
 
   backToStart(false);
-
-  // 로고 시도 로드
   loadLogo(document.getElementById('logoPolice'), 'police');
   loadLogo(document.getElementById('logoCoast'), 'coast');
 
